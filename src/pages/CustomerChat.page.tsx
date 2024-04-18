@@ -1,16 +1,18 @@
 import { useMutation } from "@apollo/client";
-import { LoadingButton } from "@mui/lab";
-import { Box, Container, TextField, Typography } from "@mui/material";
+import { Box, Button, Container, TextField, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import AudioPlayer from "../components/AudioPlayer";
+import AudioRecorder from "../components/AudioRecorder";
 import { QuestionResponse } from "../gql/graphql";
 import { ASK_QUESTION } from "../queries/queries";
-import { useEffect, useState } from "react";
-import AudioRecorder from "../components/AudioRecorder";
-import AudioPlayer from "../components/AudioPlayer";
 
 const CustomerChatPage = () => {
-  const [currentQuestion, setCurrentQuestion] = useState("");
-
-  const [askQuestion, { data, loading }] = useMutation(ASK_QUESTION);
+  const [accessToken, setAccessToken] = useState<string>(
+    localStorage.getItem("authToken") || ""
+  );
+  const [localAccessToken, setLocalAccessToken] = useState<string>("");
+  const [startedAndLoaded, setStartedAndLoaded] = useState<boolean>(false);
+  const [askQuestion, { data }] = useMutation(ASK_QUESTION);
 
   const [questions, setQuestions] = useState<QuestionResponse[]>([]);
 
@@ -25,15 +27,6 @@ const CustomerChatPage = () => {
     }
   }, [data]);
 
-  function handleSend(
-    e: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ): void {
-    e.preventDefault();
-    setAudioPhrase("Thank you, give me a couple of seconds to check on that");
-    askQuestion({ variables: { input: { question: currentQuestion } } });
-    setCurrentQuestion("");
-  }
-
   function handleReceiveText(text: string): void {
     setAudioPhrase("Thank you, give me a couple of seconds to check on that");
     askQuestion({ variables: { input: { question: text } } });
@@ -41,51 +34,71 @@ const CustomerChatPage = () => {
 
   return (
     <Container>
-      <Typography variant="h2">Customer</Typography>
-      <AudioPlayer textToPlay={audioPhrase} />
-      <AudioRecorder handleReceiveText={handleReceiveText} />
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: "2",
-          marginTop: "2rem",
-        }}
-      >
-        <TextField
-          fullWidth
-          placeholder="Type a message..."
-          value={currentQuestion}
-          onChange={(e) => {
-            setCurrentQuestion(e.currentTarget.value);
-          }}
-        />
-        <LoadingButton loading={loading} onClick={(e) => handleSend(e)}>
-          Send
-        </LoadingButton>
-      </Box>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "1rem",
-          marginTop: "2rem",
-        }}
-      >
-        {questions.map((question) => (
-          <Box
-            key={question.question}
-            sx={{
-              backgroundColor: "lightgrey",
-              padding: "1rem",
-              borderRadius: "1rem",
+      {accessToken === "" && (
+        <Box sx={{ boxShadow: 2, p: 2, borderRadius: 2, textAlign: "center" }}>
+          <Typography variant="h4">
+            Please log in to use this feature
+          </Typography>
+          <TextField
+            label="Access Token"
+            value={localAccessToken}
+            onChange={(e) => setLocalAccessToken(e.target.value)}
+          />
+          <Button
+            onClick={() => {
+              localStorage.setItem("authToken", localAccessToken);
+              setAccessToken(localAccessToken);
             }}
           >
-            <Typography variant="h4">{question.question}</Typography>
-            <Typography variant="h5">{question.answer}</Typography>
+            Log in
+          </Button>
+        </Box>
+      )}
+      {accessToken !== "" && (
+        <Box sx={{ boxShadow: 2, p: 2, borderRadius: 2, textAlign: "center" }}>
+          <Typography variant="h2">Viola</Typography>
+
+          <AudioPlayer
+            textToPlay={audioPhrase}
+            setStartedAndLoaded={setStartedAndLoaded}
+          />
+          {startedAndLoaded && (
+            <AudioRecorder handleReceiveText={handleReceiveText} />
+          )}
+
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+              marginTop: "2rem",
+            }}
+          >
+            {questions.map((question) => (
+              <Box
+                key={question.question}
+                sx={{
+                  backgroundColor: "lightgrey",
+                  padding: "1rem",
+                  borderRadius: "1rem",
+                }}
+              >
+                <Typography variant="h4">{question.question}</Typography>
+                <Typography variant="h5">{question.answer}</Typography>
+              </Box>
+            ))}
           </Box>
-        ))}
-      </Box>
+          <Button
+            onClick={() => {
+              localStorage.removeItem("authToken");
+              setAccessToken("");
+              setLocalAccessToken("");
+            }}
+          >
+            Log out
+          </Button>
+        </Box>
+      )}
     </Container>
   );
 };

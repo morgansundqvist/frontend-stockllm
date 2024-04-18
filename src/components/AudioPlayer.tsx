@@ -1,15 +1,18 @@
-import { Box } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { BackendHost } from "../config/config";
 
 interface IProps {
   textToPlay: string;
+  setStartedAndLoaded: (startedAndLoaded: boolean) => void;
 }
 
 const AudioPlayer = (props: IProps) => {
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [localTextToPlay, setLocalTextToPlay] = useState<string>("");
+  const [buttonEnabled, setButtonEnabled] = useState<boolean>(false);
+  const [isStarted, setIsStarted] = useState<boolean>(false);
 
   useEffect(() => {
     // Fetch the MP3 file URL from the API
@@ -41,7 +44,26 @@ const AudioPlayer = (props: IProps) => {
   }, [props.textToPlay]);
 
   useEffect(() => {
-    if (audioSrc && audioRef.current) {
+    if (isStarted && audioSrc && audioRef.current) {
+      const playAudio = async () => {
+        if (audioRef.current) {
+          try {
+            await audioRef.current.play();
+          } catch (err) {
+            console.error("Auto-play failed", err);
+          }
+        }
+      };
+      playAudio();
+    }
+  }, [isStarted]);
+
+  useEffect(() => {
+    if (audioSrc) {
+      setButtonEnabled(true);
+      props.setStartedAndLoaded(true);
+    }
+    if (isStarted && audioSrc && audioRef.current) {
       const playAudio = async () => {
         if (audioRef.current) {
           try {
@@ -57,7 +79,16 @@ const AudioPlayer = (props: IProps) => {
 
   return (
     <Box>
-      {audioSrc && <audio ref={audioRef} src={audioSrc} controls autoPlay />}
+      <Button
+        onClick={() => {
+          setIsStarted(true);
+          setButtonEnabled(false);
+        }}
+        disabled={!buttonEnabled}
+      >
+        Play
+      </Button>
+      {audioSrc && <audio ref={audioRef} src={audioSrc} />}
     </Box>
   );
 };
